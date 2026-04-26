@@ -109,14 +109,14 @@
         ];
 
         const ACTIVITIES = {
-            ward: { label: "📖 ورد القراءة", points: 15 },
-            finish_book: { label: "👑 إنهاء كتاب", points: 50 },
-            extra_book: { label: "📚 كتاب إضافي", points: 30 },
-            live_lecture: { label: "🔴 حضور محاضرة مباشرة", points: 20 },
-            recorded_lecture: { label: "📽️ حضور تسجيل المحاضرة", points: 15 },
-            activity: { label: "🎨 إنجاز النشاط", points: 15 },
-            plus_1: { label: "✨ نقطة إضافية", points: 1 },
-            plus_5: { label: "🌟 5 نقاط إضافية", points: 5 }
+            ward: { label: "📖 ورد القراءة", points: 15, placeholder: "ماذا قرأتِ اليوم؟" },
+            finish_book: { label: "👑 إنهاء كتاب", points: 50, placeholder: "اسم الكتاب الذي أنهيتِه" },
+            extra_book: { label: "📚 كتاب إضافي", points: 30, placeholder: "اسم الكتاب الإضافي" },
+            live_lecture: { label: "🔴 حضور محاضرة مباشرة", points: 20, placeholder: "عنوان المحاضرة" },
+            recorded_lecture: { label: "📽️ حضور تسجيل المحاضرة", points: 15, placeholder: "عنوان المحاضرة المسجلة" },
+            activity: { label: "🎨 إنجاز النشاط", points: 15, placeholder: "اسم النشاط الذي أنجزتِه" },
+            plus_1: { label: "✨ نقطة إضافية", points: 1, placeholder: "سبب النقطة الإضافية" },
+            plus_5: { label: "🌟 5 نقاط إضافية", points: 5, placeholder: "سبب النقاط الإضافية" }
         };
 
         const MOTIVATION_MESSAGES = [
@@ -249,13 +249,13 @@
                             <div class="space-y-5">
                                 <div>
                                     <label class="text-xs font-black text-gray-400 block mb-2 mr-2">نوع المهمة</label>
-                                    <select id="achType" class="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none font-bold text-gray-700">
+                                    <select id="achType" onchange="window.updatePlaceholder()" class="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none font-bold text-gray-700">
                                         ${Object.entries(ACTIVITIES).map(([key, val]) => `<option value="${key}">${val.label} (+${val.points})</option>`).join('')}
                                     </select>
                                 </div>
                                 <div>
                                     <label class="text-xs font-black text-gray-400 block mb-2 mr-2">العنوان</label>
-                                    <input id="achTitle" type="text" placeholder="ماذا قرأتِ؟" class="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none font-bold">
+                                    <input id="achTitle" type="text" placeholder="ماذا قرأتِ اليوم؟" class="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none font-bold">
                                 </div>
                                 <div>
                                     <label class="text-xs font-black text-gray-400 block mb-2 mr-2">الوصف</label>
@@ -314,6 +314,14 @@
         }
 
         // --- وظائف التحكم والمؤثرات ---
+
+        window.updatePlaceholder = () => {
+            const type = document.getElementById('achType').value;
+            const input = document.getElementById('achTitle');
+            if (ACTIVITIES[type]) {
+                input.placeholder = ACTIVITIES[type].placeholder;
+            }
+        };
 
         window.showSuccess = (points) => {
             const overlay = document.getElementById('success-overlay');

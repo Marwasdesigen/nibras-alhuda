@@ -37,17 +37,53 @@
             box-shadow: 0 15px 30px -10px rgba(236, 72, 153, 0.2);
             border-color: #f472b6;
         }
+
+        /* أنماط نافذة النجاح المميزة */
+        #success-modal {
+            transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+            display: none;
+        }
+        .success-bounce {
+            animation: bounceIn 0.8s both;
+        }
+        @keyframes bounceIn {
+            0% { opacity: 0; transform: scale(0.3); }
+            50% { opacity: 1; transform: scale(1.05); }
+            70% { transform: scale(0.9); }
+            100% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
     <div id="root"></div>
+
+    <!-- نافذة النجاح المخصصة -->
+    <div id="success-overlay" class="fixed inset-0 bg-pink-900/40 backdrop-blur-sm z-[100] hidden items-center justify-center p-4">
+        <div id="success-card" class="bg-white rounded-[50px] p-8 max-w-sm w-full text-center shadow-2xl border-4 border-white relative overflow-hidden">
+            <div class="absolute -top-10 -right-10 w-32 h-32 bg-yellow-100 rounded-full blur-3xl opacity-50"></div>
+            <div class="absolute -bottom-10 -left-10 w-32 h-32 bg-pink-100 rounded-full blur-3xl opacity-50"></div>
+            
+            <div class="relative z-10">
+                <div class="w-24 h-24 bg-gradient-to-tr from-pink-500 to-yellow-400 rounded-full flex items-center justify-center mx-auto mb-6 shadow-lg transform rotate-12">
+                    <i data-lucide="award" class="text-white w-12 h-12"></i>
+                </div>
+                <h3 class="text-3xl font-black text-pink-600 mb-2" id="success-title">إنجاز مذهل!</h3>
+                <p class="text-gray-600 font-bold mb-6 text-lg" id="success-message">لقد حلقتِ عالياً في سماء الإبداع اليوم</p>
+                <div id="success-points" class="inline-block bg-yellow-400 text-white px-6 py-2 rounded-full font-black text-xl mb-8 shadow-md">
+                    +15 نقطة
+                </div>
+                <button onclick="window.closeSuccess()" class="w-full bg-pink-600 text-white py-4 rounded-3xl font-black text-lg hover:bg-pink-700 transition-all shadow-lg active:scale-95">
+                    استمري في التألق ✨
+                </button>
+            </div>
+        </div>
+    </div>
 
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
         import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
         import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
 
-        // --- Firebase Configuration ---
         const firebaseConfig = {
             apiKey: "AIzaSyD-Zl_kqe1MPuMpjwIdW0_jvvpftf51gpM",
             authDomain: "nibrasalhuda-9e85f.firebaseapp.com",
@@ -82,6 +118,19 @@
             plus_1: { label: "✨ نقطة إضافية", points: 1 },
             plus_5: { label: "🌟 5 نقاط إضافية", points: 5 }
         };
+
+        const MOTIVATION_MESSAGES = [
+            "أنتِ فخرُ مجرة نبراس الهدى اليوم! 🌟",
+            "خطوة بخطوة.. نحو القمة يا مبدعة! ✨",
+            "هذا الإنجاز يليق بكِ تماماً، واصلي التألق 💎",
+            "لقد أضفتِ بريقاً جديداً لمجرتنا الآن! 🌌",
+            "ذكاءٌ، إرادةٌ، ونبراسُ هدى.. أنتِ رائعة! 🌈",
+            "العالم ينتظر إبداعكِ، وهذا الإنجاز مجرد بداية! 🚀"
+        ];
+
+        const SUCCESS_TITLES = [
+            "عمل مذهل!", "يا لكِ من بطلة!", "إنجاز ذهبي!", "فخورون بكِ!", "تحليق موفق!"
+        ];
 
         let state = {
             isLoggedIn: false,
@@ -212,7 +261,7 @@
                                     <label class="text-xs font-black text-gray-400 block mb-2 mr-2">الوصف</label>
                                     <textarea id="achRef" placeholder="اكتبي فكرة أعجبتك.." class="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 h-32 outline-none font-medium"></textarea>
                                 </div>
-                                <button onclick="window.saveAchievement()" class="w-full bg-pink-600 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-pink-700 transition-all transform active:scale-95">إرسال الإنجاز 🚀</button>
+                                <button id="submitBtn" onclick="window.saveAchievement()" class="w-full bg-pink-600 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-pink-700 transition-all transform active:scale-95">إرسال الإنجاز 🚀</button>
                             </div>
                         </div>
 
@@ -264,7 +313,28 @@
             `;
         }
 
-        // --- Controller Functions ---
+        // --- وظائف التحكم والمؤثرات ---
+
+        window.showSuccess = (points) => {
+            const overlay = document.getElementById('success-overlay');
+            const card = document.getElementById('success-card');
+            const title = document.getElementById('success-title');
+            const message = document.getElementById('success-message');
+            const pts = document.getElementById('success-points');
+
+            title.innerText = SUCCESS_TITLES[Math.floor(Math.random() * SUCCESS_TITLES.length)];
+            message.innerText = MOTIVATION_MESSAGES[Math.floor(Math.random() * MOTIVATION_MESSAGES.length)];
+            pts.innerText = `+${points} نقطة`;
+
+            overlay.style.display = 'flex';
+            card.classList.add('success-bounce');
+            lucide.createIcons();
+        };
+
+        window.closeSuccess = () => {
+            document.getElementById('success-overlay').style.display = 'none';
+            document.getElementById('success-card').classList.remove('success-bounce');
+        };
 
         window.toggleAdmin = () => {
             const pass = prompt("كلمة سر المشرفة:");
@@ -287,7 +357,13 @@
             const type = document.getElementById('achType').value;
             const title = document.getElementById('achTitle').value;
             const reflection = document.getElementById('achRef').value;
-            if (!title) return alert('اكتبي العنوان');
+            const btn = document.getElementById('submitBtn');
+
+            if (!title) return alert('اكتبي العنوان أولاً يا مبدعة! 🌸');
+
+            btn.disabled = true;
+            btn.innerHTML = '<i data-lucide="loader-2" class="animate-spin inline-block mr-2"></i> جاري التحليق..';
+            lucide.createIcons();
 
             const points = ACTIVITIES[type].points;
             const newAch = {
@@ -312,11 +388,19 @@
                 
                 await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userStats', state.currentUser), { points: newPoints, level }, { merge: true });
                 
-                alert('تم التوثيق بنجاح! ✨');
+                // تنظيف الخانات
+                document.getElementById('achTitle').value = "";
+                document.getElementById('achRef').value = "";
+                
+                window.showSuccess(points);
                 render();
             } catch (err) { 
                 console.error(err); 
-                alert('يوجد خطأ في الاتصال. تأكدي من تفعيل Firestore و Authentication في إعدادات Firebase.');
+                alert('عذراً، حدث خطأ أثناء الاتصال بالمجرة. يرجى التأكد من الإنترنت.');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = 'إرسال الإنجاز 🚀';
+                lucide.createIcons();
             }
         };
 
@@ -328,27 +412,23 @@
 
         async function init() {
             try {
-                // Handle possible configuration errors early
                 try {
                     await signInAnonymously(auth);
                 } catch (authErr) {
-                    console.warn("Auth Configuration Error:", authErr);
                     if (authErr.code === 'auth/configuration-not-found') {
-                        state.error = "يرجى تفعيل 'Anonymous Sign-in' من قسم Authentication في واجهة Firebase ليعمل التطبيق.";
+                        state.error = "يرجى تفعيل 'Anonymous Sign-in' في إعدادات Firebase.";
                         state.loading = false;
                         render();
                         return;
                     }
                 }
 
-                // Setup listeners
                 onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'achievements'), (snap) => {
                     state.achievements = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => b.timestamp - a.timestamp);
                     state.loading = false; 
                     state.error = null;
                     render();
                 }, (err) => {
-                    console.error("Firestore Error Achievements:", err);
                     if (err.code === 'permission-denied') {
                         state.error = "يجب ضبط قواعد الحماية (Rules) في Firestore لتسمح بالقراءة والكتابة.";
                     }
@@ -359,12 +439,9 @@
                 onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'userStats'), (snap) => {
                     snap.docs.forEach(d => state.userStats[d.id] = d.data());
                     render();
-                }, (err) => {
-                    console.error("Firestore Error Stats:", err);
                 });
             } catch (e) { 
-                console.error("General Init Error:", e);
-                state.error = "خطأ غير متوقع أثناء التشغيل. يرجى مراجعة إعدادات Firebase.";
+                state.error = "خطأ في الاتصال. يرجى مراجعة إعدادات Firebase.";
                 state.loading = false;
                 render();
             }

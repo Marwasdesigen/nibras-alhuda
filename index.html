@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>مجرة نبراس الهدى: نجمات الإبداع</title>
+    
+    <!-- Scripts: Tailwind, Lucide -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+    
+    <style>
+        body { font-family: 'Tajawal', sans-serif; background-color: #fdf2f7; color: #4a4a4a; }
+        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background: #fce7f3; border-radius: 10px; }
+        
+        @keyframes marquee { 0% { transform: translateX(100%); } 100% { transform: translateX(-100%); } }
+        .animate-marquee { animation: marquee 25s linear infinite; display: flex; white-space: nowrap; }
+        
+        .admin-mode { border: 2px solid #ec4899; box-shadow: 0 0 15px rgba(236, 72, 153, 0.2); }
+        
+        .student-name {
+            font-size: 1.8rem;
+            font-weight: 900;
+            color: #be185d;
+            text-shadow: 1px 1px 0px #ffffff;
+            line-height: 1.2;
+        }
+
+        .card-hover {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .card-hover:hover {
+            transform: translateY(-8px);
+            box-shadow: 0 15px 30px -10px rgba(236, 72, 153, 0.2);
+            border-color: #f472b6;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-app.js";
+        import { getAuth, signInAnonymously } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-auth.js";
+        import { getFirestore, collection, addDoc, onSnapshot, doc, setDoc, updateDoc } from "https://www.gstatic.com/firebasejs/11.0.1/firebase-firestore.js";
+
+        // --- Firebase Configuration ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyD-Zl_kqe1MPuMpjwIdW0_jvvpftf51gpM",
+            authDomain: "nibrasalhuda-9e85f.firebaseapp.com",
+            projectId: "nibrasalhuda-9e85f",
+            storageBucket: "nibrasalhuda-9e85f.firebasestorage.app",
+            messagingSenderId: "720748475346",
+            appId: "1:720748475346:web:74470e3c14621ff87f0e0b"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const auth = getAuth(app);
+        const db = getFirestore(app);
+        
+        const appId = 'nibrasalhuda-9e85f-v1';
+
+        const ALL_STUDENTS = [
+            { name: "لجين" }, { name: "جنا" }, { name: "أسماء" }, 
+            { name: "فيروز" }, { name: "رؤى" }, { name: "سارة" }, 
+            { name: "تالية" }, { name: "رغد" }, { name: "خديجة" }, 
+            { name: "ماسة" }, { name: "هاجر" }, { name: "رفيدة" }, 
+            { name: "شهد" }, { name: "رياحين" }, { name: "حفصة" }, 
+            { name: "حفصة مصطفى" }, { name: "وفاء" }
+        ];
+
+        const ACTIVITIES = {
+            ward: { label: "📖 ورد القراءة", points: 15 },
+            finish_book: { label: "👑 إنهاء كتاب", points: 50 },
+            extra_book: { label: "📚 كتاب إضافي", points: 30 },
+            live_lecture: { label: "🔴 حضور محاضرة مباشرة", points: 20 },
+            recorded_lecture: { label: "📽️ حضور تسجيل المحاضرة", points: 15 },
+            activity: { label: "🎨 إنجاز النشاط", points: 15 },
+            plus_1: { label: "✨ نقطة إضافية", points: 1 },
+            plus_5: { label: "🌟 5 نقاط إضافية", points: 5 }
+        };
+
+        let state = {
+            isLoggedIn: false,
+            currentUser: null,
+            achievements: [],
+            userStats: {},
+            loading: true,
+            isAdmin: false,
+            error: null
+        };
+
+        function render() {
+            const root = document.getElementById('root');
+            
+            if (state.error) {
+                root.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-screen p-6 text-center">
+                    <div class="bg-white p-8 rounded-[40px] shadow-xl border-2 border-red-100 max-w-md">
+                        <div class="text-red-500 mb-4"><i data-lucide="alert-triangle" class="w-12 h-12 mx-auto"></i></div>
+                        <h2 class="text-2xl font-black text-gray-800 mb-2">عذراً، تعذر الاتصال بالمجرة</h2>
+                        <p class="text-gray-500 font-bold mb-6">${state.error}</p>
+                        <button onclick="location.reload()" class="bg-pink-600 text-white px-8 py-3 rounded-2xl font-black shadow-lg">إعادة المحاولة 🔄</button>
+                    </div>
+                </div>`;
+                lucide.createIcons();
+                return;
+            }
+
+            if (state.loading) {
+                root.innerHTML = `
+                <div class="flex flex-col items-center justify-center h-screen space-y-4">
+                    <div class="w-12 h-12 border-4 border-pink-500 border-t-transparent rounded-full animate-spin"></div>
+                    <p class="text-pink-500 font-black animate-pulse">جاري الاتصال بالمجرة السحابية...</p>
+                </div>`;
+                return;
+            }
+
+            if (!state.isLoggedIn) {
+                root.innerHTML = renderLogin();
+            } else {
+                root.innerHTML = renderDashboard();
+            }
+            lucide.createIcons();
+        }
+
+        function renderLogin() {
+            const top = getTopStudent();
+            return `
+                <div class="min-h-screen p-6 md:p-12 relative overflow-hidden pb-32">
+                    <div class="max-w-7xl mx-auto text-center relative z-10">
+                        <h1 class="text-5xl md:text-7xl font-black text-pink-600 mb-4 cursor-pointer select-none" ondblclick="window.toggleAdmin()">مجرة نبراس الهدى</h1>
+                        <p class="text-lg md:text-xl font-bold text-pink-400 mb-12 italic">حيثُ تلتقي المعرفة بالإبداع ✨</p>
+                        
+                        ${top ? `
+                        <div class="mb-16 flex justify-center">
+                            <div class="bg-white rounded-[40px] px-10 py-6 shadow-xl border-2 border-yellow-100 relative">
+                                <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-yellow-400 text-white text-[10px] px-3 py-0.5 rounded-full font-black uppercase">ملكة الأسبوع 👑</div>
+                                <h2 class="text-3xl font-black text-pink-700">${top.name}</h2>
+                                <p class="text-purple-500 font-black mt-1">${top.points} نقطة</p>
+                            </div>
+                        </div>` : ''}
+
+                        <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                            ${ALL_STUDENTS.map(s => `
+                                <button onclick="window.login('${s.name}')" class="bg-white py-8 px-4 rounded-[40px] border-2 border-pink-50 hover:border-pink-300 transition-all card-hover flex flex-col items-center justify-center min-h-[160px]">
+                                    <h3 class="student-name">${s.name}</h3>
+                                    <div class="mt-3 text-xs text-pink-400 font-bold bg-pink-50 px-3 py-1 rounded-full">${state.userStats[s.name]?.points || 0} نقطة</div>
+                                </button>
+                            `).join('')}
+                        </div>
+                    </div>
+
+                    <div class="fixed bottom-0 left-0 right-0 bg-white/90 backdrop-blur-md p-5 border-t-2 border-pink-100 overflow-hidden shadow-2xl z-50">
+                        <div class="animate-marquee gap-16 flex items-center">
+                            ${state.achievements.slice(0, 15).map(a => `
+                                <div class="flex items-center gap-3">
+                                    <div class="w-2 h-2 bg-pink-500 rounded-full"></div>
+                                    <span class="font-bold text-gray-700 text-lg">
+                                        المبدعة <b class="text-pink-600">${a.user}</b>: 
+                                        <span class="text-purple-600 font-black">${a.title}</span> 🏆
+                                    </span>
+                                </div>
+                            `).join('')}
+                            ${state.achievements.length === 0 ? '<span class="text-pink-300 font-bold">في انتظار تحليق أولى المبدعات... ✨</span>' : ''}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderDashboard() {
+            const stats = state.userStats[state.currentUser] || { points: 0, level: 'نجمة صاعدة' };
+            const myAchievements = state.isAdmin 
+                ? state.achievements 
+                : state.achievements.filter(a => a.user === state.currentUser);
+
+            return `
+                <div class="max-w-6xl mx-auto p-4 md:p-8">
+                    <header class="bg-white p-6 rounded-[35px] shadow-sm flex flex-col md:flex-row justify-between items-center gap-6 mb-10 border border-pink-100 ${state.isAdmin ? 'admin-mode' : ''}">
+                        <div class="flex items-center gap-4">
+                            <div class="${state.isAdmin ? 'bg-pink-600' : 'bg-pink-500'} p-3 rounded-2xl text-white shadow-md"><i data-lucide="${state.isAdmin ? 'shield-check' : 'rocket'}"></i></div>
+                            <div>
+                                <h2 class="text-2xl font-black text-gray-800">${state.isAdmin ? 'لوحة المشرفة' : 'المبدعة ' + state.currentUser}</h2>
+                                <p class="text-pink-400 font-bold">${state.isAdmin ? 'إدارة المجرة ✨' : stats.level}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-4">
+                            <div class="bg-yellow-50 px-6 py-2 rounded-2xl text-yellow-600 font-black flex items-center gap-2 border border-yellow-100">🌟 ${stats.points}</div>
+                            <button onclick="window.logout()" class="text-pink-500 font-bold px-6 py-2 bg-pink-50 rounded-2xl border border-pink-100 hover:bg-pink-100 transition-colors">خروج</button>
+                        </div>
+                    </header>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-10">
+                        <div class="lg:col-span-4 bg-white p-8 rounded-[45px] shadow-xl border border-pink-50 h-fit sticky top-8">
+                            <h3 class="text-xl font-black text-pink-600 mb-6 flex items-center gap-2"><i data-lucide="plus-circle"></i> توثيق إنجاز</h3>
+                            <div class="space-y-5">
+                                <div>
+                                    <label class="text-xs font-black text-gray-400 block mb-2 mr-2">نوع المهمة</label>
+                                    <select id="achType" class="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none font-bold text-gray-700">
+                                        ${Object.entries(ACTIVITIES).map(([key, val]) => `<option value="${key}">${val.label} (+${val.points})</option>`).join('')}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="text-xs font-black text-gray-400 block mb-2 mr-2">العنوان</label>
+                                    <input id="achTitle" type="text" placeholder="ماذا قرأتِ؟" class="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 outline-none font-bold">
+                                </div>
+                                <div>
+                                    <label class="text-xs font-black text-gray-400 block mb-2 mr-2">الوصف</label>
+                                    <textarea id="achRef" placeholder="اكتبي فكرة أعجبتك.." class="w-full p-4 bg-gray-50 rounded-2xl border border-gray-100 h-32 outline-none font-medium"></textarea>
+                                </div>
+                                <button onclick="window.saveAchievement()" class="w-full bg-pink-600 text-white py-4 rounded-2xl font-black shadow-lg hover:bg-pink-700 transition-all transform active:scale-95">إرسال الإنجاز 🚀</button>
+                            </div>
+                        </div>
+
+                        <div class="lg:col-span-8 space-y-6 max-h-[1000px] overflow-y-auto custom-scrollbar px-2">
+                            <h3 class="text-xl font-black text-gray-800 flex items-center gap-2"><i data-lucide="star" class="text-yellow-400 fill-yellow-400"></i> سجل الرحلة</h3>
+                            
+                            ${myAchievements.length > 0 ? myAchievements.map(a => `
+                                <div class="bg-white p-6 rounded-[40px] shadow-sm border border-pink-50 relative">
+                                    <div class="flex justify-between items-start mb-4">
+                                        <div>
+                                            <div class="flex gap-2 mb-2">
+                                                <span class="text-[10px] font-black text-pink-500 bg-pink-50 px-3 py-1 rounded-full">${a.activityLabel}</span>
+                                                ${state.isAdmin ? `<span class="text-[10px] font-black text-purple-600 bg-purple-50 px-3 py-1 rounded-full">${a.user}</span>` : ''}
+                                            </div>
+                                            <h4 class="text-xl font-black text-gray-800">${a.title}</h4>
+                                        </div>
+                                        <div class="bg-yellow-50 px-4 py-1 rounded-xl border border-yellow-100 text-yellow-600 font-black">+${a.pointsAwarded}</div>
+                                    </div>
+                                    <p class="text-gray-600 italic text-md leading-relaxed mb-6">"${a.reflection}"</p>
+                                    
+                                    <div class="mt-6 pt-4 border-t border-gray-50">
+                                        <div class="${a.supervisorComment ? 'block' : (state.isAdmin ? 'block' : 'hidden')} bg-pink-50/30 p-5 rounded-[30px] border-r-4 border-pink-400">
+                                            <div class="flex items-center gap-2 mb-2 text-pink-600">
+                                                <i data-lucide="sparkles" class="w-4 h-4"></i>
+                                                <span class="text-xs font-black">تحليق المشرفة:</span>
+                                            </div>
+                                            ${state.isAdmin ? `
+                                                <div class="flex gap-2">
+                                                    <input id="input-${a.id}" type="text" value="${a.supervisorComment || ''}" placeholder="كلمة طيبة.." class="flex-1 bg-white p-3 rounded-xl border border-pink-50 text-sm font-bold outline-none">
+                                                    <button onclick="window.addComment('${a.id}')" class="bg-pink-600 text-white px-4 rounded-xl hover:bg-pink-700 transition-all"><i data-lucide="send" class="w-4 h-4"></i></button>
+                                                </div>
+                                            ` : `
+                                                <p class="text-pink-900 font-bold text-md">${a.supervisorComment}</p>
+                                            `}
+                                        </div>
+                                    </div>
+
+                                    <div class="mt-4 flex justify-between items-center text-[10px] text-gray-400 font-bold">
+                                        <span>${a.date}</span>
+                                        <span>${new Date(a.timestamp).toLocaleTimeString('ar-EG', {hour:'2-digit', minute:'2-digit'})}</span>
+                                    </div>
+                                </div>
+                            `).join('') : `
+                                <div class="text-center py-20 bg-white rounded-[40px] border-2 border-dashed border-pink-100 text-pink-300 font-bold">المجرة تترقب إنجازك الأول! ✨</div>
+                            `}
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        // --- Controller Functions ---
+
+        window.toggleAdmin = () => {
+            const pass = prompt("كلمة سر المشرفة:");
+            if (pass === "1234") { state.isAdmin = !state.isAdmin; render(); }
+            else if(pass !== null) { alert("خطأ 🔒"); }
+        };
+
+        window.addComment = async (achId) => {
+            const comment = document.getElementById(`input-${achId}`).value;
+            if (!comment) return;
+            try {
+                await updateDoc(doc(db, 'artifacts', appId, 'public', 'data', 'achievements', achId), { supervisorComment: comment });
+            } catch (err) { console.error(err); }
+        };
+
+        window.login = (name) => { state.currentUser = name; state.isLoggedIn = true; render(); };
+        window.logout = () => { state.isLoggedIn = false; state.currentUser = null; state.isAdmin = false; render(); };
+
+        window.saveAchievement = async () => {
+            const type = document.getElementById('achType').value;
+            const title = document.getElementById('achTitle').value;
+            const reflection = document.getElementById('achRef').value;
+            if (!title) return alert('اكتبي العنوان');
+
+            const points = ACTIVITIES[type].points;
+            const newAch = {
+                user: state.currentUser,
+                title, type, reflection,
+                activityLabel: ACTIVITIES[type].label,
+                pointsAwarded: points,
+                timestamp: Date.now(),
+                date: new Date().toLocaleDateString('ar-EG'),
+                supervisorComment: ""
+            };
+
+            try {
+                await addDoc(collection(db, 'artifacts', appId, 'public', 'data', 'achievements'), newAch);
+                
+                const current = state.userStats[state.currentUser] || { points: 0 };
+                const newPoints = (current.points || 0) + points;
+                let level = "نجمة صاعدة";
+                if (newPoints >= 200) level = "فراشة مجتهدة 🦋";
+                if (newPoints >= 500) level = "أميرة نبراس الهدى 👑";
+                if (newPoints >= 1000) level = "ملكة نبراس الهدى 🌌";
+                
+                await setDoc(doc(db, 'artifacts', appId, 'public', 'data', 'userStats', state.currentUser), { points: newPoints, level }, { merge: true });
+                
+                alert('تم التوثيق بنجاح! ✨');
+                render();
+            } catch (err) { 
+                console.error(err); 
+                alert('يوجد خطأ في الاتصال. تأكدي من تفعيل Firestore و Authentication في إعدادات Firebase.');
+            }
+        };
+
+        function getTopStudent() {
+            let top = null; let max = -1;
+            Object.entries(state.userStats).forEach(([name, s]) => { if(s.points > max) { max = s.points; top = {name, ...s}; }});
+            return max > 0 ? top : null;
+        }
+
+        async function init() {
+            try {
+                // Handle possible configuration errors early
+                try {
+                    await signInAnonymously(auth);
+                } catch (authErr) {
+                    console.warn("Auth Configuration Error:", authErr);
+                    if (authErr.code === 'auth/configuration-not-found') {
+                        state.error = "يرجى تفعيل 'Anonymous Sign-in' من قسم Authentication في واجهة Firebase ليعمل التطبيق.";
+                        state.loading = false;
+                        render();
+                        return;
+                    }
+                }
+
+                // Setup listeners
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'achievements'), (snap) => {
+                    state.achievements = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a,b) => b.timestamp - a.timestamp);
+                    state.loading = false; 
+                    state.error = null;
+                    render();
+                }, (err) => {
+                    console.error("Firestore Error Achievements:", err);
+                    if (err.code === 'permission-denied') {
+                        state.error = "يجب ضبط قواعد الحماية (Rules) في Firestore لتسمح بالقراءة والكتابة.";
+                    }
+                    state.loading = false;
+                    render();
+                });
+
+                onSnapshot(collection(db, 'artifacts', appId, 'public', 'data', 'userStats'), (snap) => {
+                    snap.docs.forEach(d => state.userStats[d.id] = d.data());
+                    render();
+                }, (err) => {
+                    console.error("Firestore Error Stats:", err);
+                });
+            } catch (e) { 
+                console.error("General Init Error:", e);
+                state.error = "خطأ غير متوقع أثناء التشغيل. يرجى مراجعة إعدادات Firebase.";
+                state.loading = false;
+                render();
+            }
+        }
+        init();
+    </script>
+</body>
+</html>
